@@ -8,6 +8,8 @@ from PIL import Image
 import numpy as np
 import os
 import csv
+from itertools import combinations
+
 images_to_compare = [] # lista mieszkań do przeróbki na grayscale z excela - ścieżki
 
 print('Wpisz id inwestycji: ')
@@ -19,9 +21,7 @@ for f in os.listdir(path):
     if f.endswith('.jpg'):
         images_to_compare.append(f)
 
-# print(images_to_compare)
-
-images_grayscale = [] #lista img w grayscale - przy założeniu że mieszkania są przesortowane po metrażu
+images_grayscale = []
 
 # img_size = (2000, 2000)
 
@@ -34,39 +34,39 @@ for img in images_to_compare:
 # img1 = np.array(images_grayscale[8])
 # img2 = np.array(images_grayscale[9])
 # mse_error = np.mean((img1 - img2)**2)
-
+        
+#liczenie mean squared error
 def mse_error(imgA, imgB):
-    # err = np.sum((imgA.astype('float') - imgB.astype('float'))**2)
-    # err /= float(imgA.shape[0]*imgB.shape[1])
-    err = np.mean((imgA - imgB)**2)
-    return err
+    np_img1 = np.array(imgA)
+    np_img2 = np.array(imgB)
 
-img1 = np.array(images_grayscale[0])
+    mse = np.mean((np_img1 - np_img2)**2)
+    return mse
 
-duplicates = []
-list = []
-count = 0
+#inicjowanie dict i setu
+img_pairs = {}
+img_added = set()
 
-for i in images_grayscale[1:]:
+for img1_path, img2_path in combinations(images_to_compare, 2):
+
+    img1 = images_grayscale[images_to_compare.index(img1_path)]
+    img2 = images_grayscale[images_to_compare.index(img2_path)]
     
-    img2 = np.array(i)
     mse = mse_error(img1, img2)
-    list.append(images_to_compare[count])
-    count+=1
-    # print(list)
-    if mse > 0.5:
-        duplicates.append(list)
-        list = []
-        img1 = img2
-    
-list.append(images_to_compare[-1])
-duplicates.append(list)
 
-# print(duplicates)
+    if mse < 0.5 and img2_path not in img_pairs and img1_path not in img_added:
+        if img1_path in img_pairs:
+            img_pairs[img1_path].append(img2_path)
+        else:
+            img_pairs[img1_path] = [img2_path]
+        img_added.add(img2_path)
+
+print(img_pairs)
 
 with open(f'duplicates{inv_id}.csv', 'w', newline='') as csvfile:
-    writer = csv.writer(csvfile, delimiter=';')
-    for row in duplicates:
+    writer = csv.writer(csvfile, delimiter = ';')
+    for key, value in img_pairs.items():
+        row = [key] + value
         writer.writerow(row)
     print('DONE')
 
